@@ -1,0 +1,14 @@
+
+contacts:
+  name: "my_test_proxy"
+  server: "tcp://dev.joyteam.cc:1883"
+  username: "xxx"
+  password: "xxx"
+
+ice:
+  - "stun:stun.l.google.com:19302"
+
+proxy:
+  listen: ":22"
+  stub: "my_test_stub"
+
