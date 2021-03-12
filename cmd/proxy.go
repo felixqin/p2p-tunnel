@@ -76,6 +76,7 @@ func connectStub(stub string, iceConf *iceConfigure, sock net.Conn) {
 
 	// handle receive answer
 	contacts.HandleAnswerFunc(func(fromClient string, answer *contacts.Answer) {
+		log.Println("handler answer, sdp:", answer.Sdp)
 		err := pc.SetRemoteDescription(webrtc.RTCSessionDescription{
 			Type: webrtc.RTCSdpTypeAnswer,
 			Sdp:  answer.Sdp,

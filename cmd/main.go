@@ -38,7 +38,7 @@ func main() {
 
 	if configure.Stub != nil {
 		go func() {
-			errc <- stubServe(configure.Stub)
+			stubServe(configure.Stub, configure.Ice)
 		}()
 	}
 

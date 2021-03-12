@@ -8,7 +8,7 @@ func addContact(contact *Contact) error {
 	log.Println("add contact:", contact)
 	for _, item := range contacts {
 		// log.Println("item:", item)
-		if item.ClientId == contact.ClientId && item.Owner == item.Owner {
+		if item.Name == contact.Name {
 			*item = *contact
 			return nil
 		}

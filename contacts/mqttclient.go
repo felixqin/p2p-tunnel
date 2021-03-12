@@ -13,7 +13,7 @@ var mqc mqtt.Client
 func startMqtt(broker string, clientId string, uid string, password string) {
 	var handlers = map[string]func(string, []byte){
 		"to/user/" + uid + "/msg":        handleToUserMessage,
-		"to/client/" + clientId + "/msg": handleToUserMessage,
+		"to/client/" + clientId + "/msg": handleToClientMessage,
 	}
 
 	opts := mqtt.NewClientOptions()
@@ -39,7 +39,7 @@ func startMqtt(broker string, clientId string, uid string, password string) {
 
 		// subscribe topics
 		for topic, handler := range handlers {
-			token := mqc.Subscribe(topic, 2, func(client mqtt.Client, message mqtt.Message) {
+			token := mqc.Subscribe(topic, 0, func(client mqtt.Client, message mqtt.Message) {
 				log.Println("message arrived!", message.Topic())
 				// log.Printf("message payload: %s\n", message.Payload())
 				handler(parseIdFormTopic(message.Topic()), message.Payload())
