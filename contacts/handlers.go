@@ -17,9 +17,9 @@ func handleServerConnectionLost() {
 	log.Println("server connection lost!")
 }
 
-func handleToUserMessage(uid string, payload []byte) {
-	clientId, cmd, data, err := parseUserMessage(payload)
-	log.Println("handleToUserMessage, from user:", uid, "client:", clientId)
+func handleToUserMessage(toUser string, payload []byte) {
+	from, cmd, data, err := parseUserMessage(payload)
+	log.Println("handleToUserMessage, from:", from)
 	if err != nil {
 		log.Println("parse user message failed!", err)
 		return
@@ -27,7 +27,7 @@ func handleToUserMessage(uid string, payload []byte) {
 
 	switch cmd {
 	case "queryClientInfo":
-		err = onQueryClientInfo(uid)
+		err = onQueryClientInfo(from.User)
 	case "notifyClientInfo":
 		err = onNotifyClientInfo(data)
 	}
@@ -38,9 +38,9 @@ func handleToUserMessage(uid string, payload []byte) {
 	}
 }
 
-func handleToClientMessage(clientId string, payload []byte) {
-	uid, cmd, data, err := parseClientMessage(payload)
-	log.Println("handleToClientMessage, from user:", uid, "client:", clientId)
+func handleToClientMessage(toClientId string, payload []byte) {
+	from, cmd, data, err := parseClientMessage(payload)
+	log.Println("handleToClientMessage, from:", from)
 	if err != nil {
 		log.Println("parse user message failed!", err)
 		return
@@ -48,9 +48,9 @@ func handleToClientMessage(clientId string, payload []byte) {
 
 	switch cmd {
 	case "sendOffer":
-		err = onSendOffer(clientId, data)
+		err = onSendOffer(from.Client, data)
 	case "sendAnswer":
-		err = onSendAnswer(clientId, data)
+		err = onSendAnswer(from.Client, data)
 	}
 
 	if err != nil {
@@ -59,9 +59,9 @@ func handleToClientMessage(clientId string, payload []byte) {
 	}
 }
 
-func onQueryClientInfo(toUser string) error {
-	log.Println("on query client info:")
-	return sendMessageToUser(toUser, "notifyClientInfo", &struct {
+func onQueryClientInfo(fromUser string) error {
+	log.Println("on query client info")
+	return sendMessageToUser(fromUser, "notifyClientInfo", &struct {
 		Name   string `json:"name"`
 		Client string `json:"client"`
 		User   string `json:"user"`
@@ -73,7 +73,7 @@ func onQueryClientInfo(toUser string) error {
 }
 
 func onNotifyClientInfo(data []byte) error {
-	log.Println("on notify client info, data:", data)
+	// log.Printf("on notify client info, data: %s\n", data)
 	var info struct {
 		Name   string `json:"name"`
 		Client string `json:"client"`
@@ -97,6 +97,7 @@ func onNotifyClientInfo(data []byte) error {
 }
 
 func onSendOffer(fromClient string, data []byte) error {
+	// log.Printf("on send offer, data: %s\n", data)
 	var offer Offer
 	err := json.Unmarshal(data, &offer)
 	if err != nil {

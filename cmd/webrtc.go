@@ -22,7 +22,7 @@ type rtcWriter struct {
 }
 
 func newWebRTCWriter(dc *webrtc.RTCDataChannel) *rtcWriter {
-	return &rtcWriter{}
+	return &rtcWriter{dc}
 }
 
 func (s *rtcWriter) Write(b []byte) (int, error) {

@@ -39,10 +39,11 @@ func startMqtt(broker string, clientId string, uid string, password string) {
 
 		// subscribe topics
 		for topic, handler := range handlers {
+			msg_handler := handler
 			token := mqc.Subscribe(topic, 0, func(client mqtt.Client, message mqtt.Message) {
 				log.Println("message arrived!", message.Topic())
-				// log.Printf("message payload: %s\n", message.Payload())
-				handler(parseIdFormTopic(message.Topic()), message.Payload())
+				log.Printf("message payload: %s\n", message.Payload())
+				msg_handler(parseIdFormTopic(message.Topic()), message.Payload())
 			})
 			token.Wait()
 			err := token.Error()
@@ -73,6 +74,7 @@ func parseIdFormTopic(topic string) string {
 
 func mqttPublish(topic string, payload []byte) error {
 	log.Println("publish topic", topic)
+	log.Printf("message payload: %s\n", payload)
 	token := mqc.Publish(topic, 0, false, payload)
 	token.Wait()
 	err := token.Error()

@@ -16,28 +16,28 @@ type message struct {
 	From    *messageFrom `json:"from"`
 }
 
-func parseUserMessage(payload []byte) (string, string, []byte, error) {
+func parseUserMessage(payload []byte) (*messageFrom, string, []byte, error) {
 	var data json.RawMessage
 	msg := message{Data: &data}
 	err := json.Unmarshal(payload, &msg)
 	if err != nil {
 		log.Println("unmarshal message failed!", err)
-		return "", "", nil, err
+		return nil, "", nil, err
 	}
 
-	return msg.From.Client, msg.Command, data, nil
+	return msg.From, msg.Command, data, nil
 }
 
-func parseClientMessage(payload []byte) (string, string, []byte, error) {
+func parseClientMessage(payload []byte) (*messageFrom, string, []byte, error) {
 	var data json.RawMessage
 	msg := message{Data: &data}
 	err := json.Unmarshal(payload, &msg)
 	if err != nil {
 		log.Println("unmarshal message failed!", err)
-		return "", "", nil, err
+		return nil, "", nil, err
 	}
 
-	return msg.From.User, msg.Command, data, nil
+	return msg.From, msg.Command, data, nil
 }
 
 func sendMessageToUser(to string, cmd string, data interface{}) error {
