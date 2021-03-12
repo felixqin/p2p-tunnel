@@ -1,24 +1,20 @@
 package contacts
 
-type Configure struct {
-	Name     string `yaml:"name"`
-	Server   string `yaml:"server"`
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
+import "log"
 
-	clientId string
-}
+var contacts []*Contact
 
-var configure Configure
+func addContact(contact *Contact) error {
+	log.Println("add contact:", contact)
+	for _, item := range contacts {
+		// log.Println("item:", item)
+		if item.ClientId == contact.ClientId && item.Owner == item.Owner {
+			*item = *contact
+			return nil
+		}
+	}
 
-func Open(conf Configure) {
-	configure = conf
-	configure.clientId = conf.Name + "_" + makeRandomString(8)
-	go func() {
-		startMqtt(conf.Server, configure.clientId, conf.Username, conf.Password)
-	}()
-}
-
-func Close() {
-	stopMqtt()
+	contacts = append(contacts, contact)
+	// log.Println("contacts:", contacts)
+	return nil
 }

@@ -9,6 +9,6 @@ ice:
   - "stun:stun.l.google.com:19302"
 
 proxy:
-  listen: ":22"
+  listen: ":50022"
   stub: "my_test_stub"
 

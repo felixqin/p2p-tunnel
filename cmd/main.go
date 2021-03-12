@@ -30,6 +30,18 @@ func main() {
 	contacts.Open(configure.Contacts)
 	defer contacts.Close()
 
+	if configure.Proxy != nil {
+		go func() {
+			errc <- proxyServe(configure.Proxy, configure.Ice)
+		}()
+	}
+
+	if configure.Stub != nil {
+		go func() {
+			errc <- stubServe(configure.Stub)
+		}()
+	}
+
 	// Run!
 	log.Println("exit:", <-errc)
 }

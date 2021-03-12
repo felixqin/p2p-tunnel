@@ -10,7 +10,10 @@ import (
 )
 
 var configure struct {
-	Contacts contacts.Configure `yaml:"contacts`
+	Contacts *contacts.Configure `yaml:"contacts"`
+	Ice      *iceConfigure       `yaml:"ice"`
+	Proxy    *proxyConfigure     `yaml:"proxy"`
+	Stub     *stubConfigure      `yaml:"stub"`
 }
 
 func init() {
