@@ -27,7 +27,7 @@ func main() {
 		errc <- terminateError
 	}()
 
-	contacts.Open()
+	contacts.Open(configure.Contacts)
 	defer contacts.Close()
 
 	// Run!

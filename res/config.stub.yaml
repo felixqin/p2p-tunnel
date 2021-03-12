@@ -2,8 +2,8 @@
 contacts:
   name: "my_test_stub"
   server: "tcp://dev.joyteam.cc:1883"
-  username: "xxx"
-  password: "xxx"
+  username: "test"
+  password: "123456"
 
 ice:
   - "stun:stun.l.google.com:19302"
