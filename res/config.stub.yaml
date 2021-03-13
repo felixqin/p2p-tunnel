@@ -6,8 +6,9 @@ contacts:
   password: "123456"
 
 ice:
+  - "stun:dev.joyteam.cc:3478"
   # - "stun:stun.l.google.com:19302"
-  - "stun:stun.xten.com:3478"
+  # - "stun:stun.xten.com:3478"
   # - "stun:stun.voipbuster.com:3478"
   # - "stun:stun.sipgate.net:3478"
   # - "stun:stun.ekiga.net:3478"
