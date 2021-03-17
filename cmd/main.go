@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/felixqin/p2p-tunnel/contacts"
+	"github.com/felixqin/p2p-tunnel/tunnel"
 )
 
 func main() {
@@ -27,18 +28,44 @@ func main() {
 		errc <- terminateError
 	}()
 
-	contacts.Open(configure.Contacts)
-	defer contacts.Close()
+	stubs := make(map[string]*tunnel.Stub)
+	proxys := make(map[string]*tunnel.Proxy)
 
-	if configure.Proxy != nil {
-		go func() {
-			errc <- proxyServe(configure.Proxy, configure.Ice)
-		}()
+	// Create stubs
+	for _, opts := range configure.Stubs {
+		stub := tunnel.NewStub(opts, configure.Ices)
+		stubs[opts.Name] = stub
 	}
 
-	if configure.Stub != nil {
+	// Create proxys
+	for _, opts := range configure.Proxys {
+		proxy := tunnel.NewProxy(opts, configure.Ices)
+		proxys[opts.Stub] = proxy
+	}
+
+	// Handle contacts message
+	contacts.Open(configure.Contact)
+	defer contacts.Close()
+
+	contacts.HandleOfferFunc(func(fromClient string, offer *contacts.Offer) {
+		stub := stubs[offer.Stub]
+		if stub != nil {
+			stub.HandleOffer(fromClient, offer)
+		}
+	})
+
+	contacts.HandleAnswerFunc(func(fromClient string, answer *contacts.Answer) {
+		proxy := proxys[answer.Stub]
+		if proxy != nil {
+			proxy.HandleAnswer(fromClient, answer)
+		}
+	})
+
+	// Start proxys service
+	for _, proxy := range proxys {
+		p := proxy
 		go func() {
-			stubServe(configure.Stub, configure.Ice)
+			errc <- p.ListenAndServe()
 		}()
 	}
 

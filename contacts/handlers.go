@@ -10,7 +10,7 @@ var answerHandler func(fromClient string, answer *Answer)
 
 func handleServerConnected() {
 	log.Println("server connected!")
-	sendMessageToUser(configure.Username, "queryClientInfo", nil)
+	sendMessageToUser(options.Username, "queryClientInfo", nil)
 }
 
 func handleServerConnectionLost() {
@@ -66,9 +66,9 @@ func onQueryClientInfo(fromUser string) error {
 		Client string `json:"client"`
 		User   string `json:"user"`
 	}{
-		Name:   configure.Name,
-		Client: configure.clientId,
-		User:   configure.Username,
+		Name:   options.Name,
+		Client: options.clientId,
+		User:   options.Username,
 	})
 }
 

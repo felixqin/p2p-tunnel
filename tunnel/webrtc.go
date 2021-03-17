@@ -1,13 +1,13 @@
-package main
+package tunnel
 
 import (
 	"github.com/pions/webrtc"
 	"github.com/pions/webrtc/pkg/datachannel"
 )
 
-type iceConfigure []string
+type IceOptions []string
 
-func newWebRTC(conf *iceConfigure) (*webrtc.RTCPeerConnection, error) {
+func newWebRTC(conf *IceOptions) (*webrtc.RTCPeerConnection, error) {
 	return webrtc.New(webrtc.RTCConfiguration{
 		IceServers: []webrtc.RTCIceServer{
 			{

@@ -1,4 +1,4 @@
-package main
+package tunnel
 
 import (
 	"io"
@@ -11,14 +11,35 @@ import (
 	"github.com/pions/webrtc/pkg/ice"
 )
 
-type proxyConfigure struct {
-	Listen string `yaml:"listen"`
-	Stub   string `yaml:"stub"`
+type ProxyOptions struct {
+	Listen  string `yaml:"listen"`
+	Enable  bool   `yaml:"enable"`
+	Contact string `yaml:"contact"`
+	Stub    string `yaml:"stub"`
 }
 
-func proxyServe(proxyConf *proxyConfigure, iceConf *iceConfigure) error {
-	log.Println("listen on", proxyConf.Listen, "...")
-	l, err := net.Listen("tcp", proxyConf.Listen)
+type Proxy struct {
+	proxyOptions  *ProxyOptions
+	iceOptions    *IceOptions
+	answerHandler func(fromClient string, answer *contacts.Answer)
+}
+
+func NewProxy(opts *ProxyOptions, iceopts *IceOptions) *Proxy {
+	return &Proxy{
+		proxyOptions: opts,
+		iceOptions:   iceopts,
+	}
+}
+
+func (p *Proxy) HandleAnswer(fromClient string, answer *contacts.Answer) {
+	if p.answerHandler != nil {
+		p.answerHandler(fromClient, answer)
+	}
+}
+
+func (p *Proxy) ListenAndServe() error {
+	log.Println("listen", p.proxyOptions.Stub, "on", p.proxyOptions.Listen, "...")
+	l, err := net.Listen("tcp", p.proxyOptions.Listen)
 	if err != nil {
 		return err
 	}
@@ -30,13 +51,13 @@ func proxyServe(proxyConf *proxyConfigure, iceConf *iceConfigure) error {
 			continue
 		}
 
-		go connectStub(proxyConf.Stub, iceConf, sock)
+		go p.connectStub(sock)
 	}
 }
 
-func connectStub(stub string, iceConf *iceConfigure, sock net.Conn) {
+func (p *Proxy) connectStub(sock net.Conn) {
 	log.Println("connect stub ...")
-	pc, err := newWebRTC(iceConf)
+	pc, err := newWebRTC(p.iceOptions)
 	if err != nil {
 		log.Println("rtc error:", err)
 		return
@@ -75,7 +96,7 @@ func connectStub(stub string, iceConf *iceConfigure, sock net.Conn) {
 	log.Print("DataChannel:", dc)
 
 	// handle receive answer
-	contacts.HandleAnswerFunc(func(fromClient string, answer *contacts.Answer) {
+	p.answerHandler = func(fromClient string, answer *contacts.Answer) {
 		log.Println("handler answer, sdp:", answer.Sdp)
 		err := pc.SetRemoteDescription(webrtc.RTCSessionDescription{
 			Type: webrtc.RTCSdpTypeAnswer,
@@ -86,7 +107,7 @@ func connectStub(stub string, iceConf *iceConfigure, sock net.Conn) {
 			pc.Close()
 			return
 		}
-	})
+	}
 
 	offer, err := pc.CreateOffer(nil)
 	if err != nil {
@@ -95,14 +116,17 @@ func connectStub(stub string, iceConf *iceConfigure, sock net.Conn) {
 		return
 	}
 
-	contact, err := contacts.FindContact(stub)
+	contact, err := contacts.FindContact(p.proxyOptions.Contact)
 	if err != nil {
-		log.Println("not found stub in contacts!")
+		log.Println("not found contact in contacts!", contact)
 		pc.Close()
 		return
 	}
 
-	err = contacts.SendOffer(contact.ClientId, &contacts.Offer{Sdp: offer.Sdp})
+	err = contacts.SendOffer(contact.ClientId, &contacts.Offer{
+		Sdp:  offer.Sdp,
+		Stub: p.proxyOptions.Stub,
+	})
 	if err != nil {
 		log.Println("push error:", err)
 		pc.Close()

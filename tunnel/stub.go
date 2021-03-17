@@ -1,4 +1,4 @@
-package main
+package tunnel
 
 import (
 	"io"
@@ -11,21 +11,31 @@ import (
 	"github.com/pions/webrtc/pkg/ice"
 )
 
-type stubConfigure struct {
-	Addr string `yaml:"addr"`
+type StubOptions struct {
+	Name   string `yaml:"name"`
+	Enable bool   `yaml:"enable"`
+	Addr   string `yaml:"addr"`
 }
 
-func stubServe(stubConf *stubConfigure, iceConf *iceConfigure) {
-	// handle receive offer
-	contacts.HandleOfferFunc(func(fromClient string, offer *contacts.Offer) {
+type Stub struct {
+	stubOptions *StubOptions
+	iceOptions  *IceOptions
+}
+
+func NewStub(opts *StubOptions, iceopts *IceOptions) *Stub {
+	return &Stub{opts, iceopts}
+}
+
+func (s *Stub) HandleOffer(fromClient string, offer *contacts.Offer) {
+	go func() {
 		log.Println("handler offer, sdp:", offer.Sdp)
-		pc, err := newWebRTC(iceConf)
+		pc, err := newWebRTC(s.iceOptions)
 		if err != nil {
 			log.Println("rtc error:", err)
 			return
 		}
 
-		sock, err := net.Dial("tcp", stubConf.Addr)
+		sock, err := net.Dial("tcp", s.stubOptions.Addr)
 		if err != nil {
 			log.Println("sock dial filed:", err)
 			pc.Close()
@@ -43,7 +53,7 @@ func stubServe(stubConf *stubConfigure, iceConf *iceConfigure) {
 		pc.OnDataChannel(func(dc *webrtc.RTCDataChannel) {
 			//dc.Lock()
 			dc.OnOpen(func() {
-				log.Print("dial:", stubConf.Addr)
+				log.Print("dial:", s.stubOptions.Addr)
 				io.Copy(newWebRTCWriter(dc), sock)
 				log.Println("disconnected")
 			})
@@ -81,12 +91,15 @@ func stubServe(stubConf *stubConfigure, iceConf *iceConfigure) {
 			return
 		}
 
-		err = contacts.SendAnswer(fromClient, &contacts.Answer{Sdp: answer.Sdp})
+		err = contacts.SendAnswer(fromClient, &contacts.Answer{
+			Sdp:  answer.Sdp,
+			Stub: s.stubOptions.Name,
+		})
 		if err != nil {
 			log.Println("rtc error:", err)
 			pc.Close()
 			sock.Close()
 			return
 		}
-	})
+	}()
 }

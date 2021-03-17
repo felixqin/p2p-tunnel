@@ -1,11 +1,11 @@
 
 contact:
-  name: "my_test_"
+  name: "my_test_node"
   server: "tcp://dev.joyteam.cc:1883"
   username: "test"
   password: "123456"
 
-ice:
+ices:
   - "stun:dev.joyteam.cc:3478"
   # - "stun:stun.l.google.com:19302"
   # - "stun:stun.xten.com:3478"
@@ -27,10 +27,18 @@ ice:
 
 stubs:
   - name: "ssh"
+    enable: true
     addr: "127.0.0.1:22"
   - name: "vnc1"
+    enable: true
     addr: "127.0.0.1:5901"
 
 proxys:
   - listen: ":50022"
-    stub: "my_test_stub"
+    enable: true
+    contact: "my_test_node"
+    stub: "ssh"
+  - listen: ":55901"
+    enable: true
+    contact: "my_test_node"
+    stub: "vnc1"

@@ -6,14 +6,15 @@ import (
 	"log"
 
 	"github.com/felixqin/p2p-tunnel/contacts"
+	"github.com/felixqin/p2p-tunnel/tunnel"
 	"gopkg.in/yaml.v2"
 )
 
 var configure struct {
-	Contacts *contacts.Configure `yaml:"contacts"`
-	Ice      *iceConfigure       `yaml:"ice"`
-	Proxy    *proxyConfigure     `yaml:"proxy"`
-	Stub     *stubConfigure      `yaml:"stub"`
+	Contact *contacts.Options      `yaml:"contact"`
+	Ices    *tunnel.IceOptions     `yaml:"ices"`
+	Proxys  []*tunnel.ProxyOptions `yaml:"proxys"`
+	Stubs   []*tunnel.StubOptions  `yaml:"stubs"`
 }
 
 func init() {

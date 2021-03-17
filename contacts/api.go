@@ -2,7 +2,7 @@ package contacts
 
 import "fmt"
 
-type Configure struct {
+type Options struct {
 	Name     string `yaml:"name"`
 	Server   string `yaml:"server"`
 	Username string `yaml:"username"`
@@ -18,20 +18,22 @@ type Contact struct {
 }
 
 type Offer struct {
-	Sdp string `json:"sdp"`
+	Sdp  string `json:"sdp"`
+	Stub string `json:"stub"`
 }
 
 type Answer struct {
-	Sdp string `json:"sdp"`
+	Sdp  string `json:"sdp"`
+	Stub string `json:"stub"`
 }
 
-var configure Configure
+var options Options
 
-func Open(conf *Configure) {
-	configure = *conf
-	configure.clientId = conf.Name + "_" + makeRandomString(8)
+func Open(opts *Options) {
+	options = *opts
+	options.clientId = opts.Name + "_" + makeRandomString(8)
 	go func() {
-		startMqtt(conf.Server, configure.clientId, conf.Username, conf.Password)
+		startMqtt(opts.Server, options.clientId, opts.Username, opts.Password)
 	}()
 }
 
