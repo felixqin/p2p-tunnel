@@ -26,19 +26,19 @@ ices:
   # - "stun:numb.viagenie.ca:3478"
 
 stubs:
-  - name: "ssh"
+  - name: "ssh_stub1"
     enable: true
-    addr: "127.0.0.1:22"
-  - name: "vnc1"
+    upstream: "127.0.0.1:22"
+  - name: "vnc_stub1"
     enable: true
-    addr: "127.0.0.1:5901"
+    upstream: "127.0.0.1:5901"
 
 proxys:
   - listen: ":50022"
     enable: true
     contact: "my_test_node"
-    stub: "ssh"
+    stub: "ssh_stub1"
   - listen: ":55901"
     enable: true
     contact: "my_test_node"
-    stub: "vnc1"
+    stub: "vnc_stub1"

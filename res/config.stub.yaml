@@ -5,7 +5,7 @@ contacts:
   username: "test"
   password: "123456"
 
-ice:
+ices:
   - "stun:dev.joyteam.cc:3478"
   # - "stun:stun.l.google.com:19302"
   # - "stun:stun.xten.com:3478"
@@ -25,6 +25,9 @@ ice:
   # - "stun:stun.internetcalls.com:3478"
   # - "stun:numb.viagenie.ca:3478"
 
-stub:
-  addr: "127.0.0.1:22"
+proxys:
+  - listen: ":50022"
+    enable: true
+    contact: "my_test_node"
+    stub: "ssh"
 
