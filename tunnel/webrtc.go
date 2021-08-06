@@ -15,16 +15,3 @@ func newWebRTC(conf *IceOptions) (*webrtc.RTCPeerConnection, error) {
 		},
 	})
 }
-
-// type rtcWriter struct {
-// 	*webrtc.RTCDataChannel
-// }
-
-// func newWebRTCWriter(dc *webrtc.RTCDataChannel) *rtcWriter {
-// 	return &rtcWriter{dc}
-// }
-
-// func (s *rtcWriter) Write(b []byte) (int, error) {
-// 	err := s.RTCDataChannel.Send(datachannel.PayloadBinary{Data: b})
-// 	return len(b), err
-// }
