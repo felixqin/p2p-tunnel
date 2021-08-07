@@ -31,10 +31,10 @@ func main() {
 		errc <- terminateError
 	}()
 
-	// stubopts := make(map[string]*StubOptions)
 	proxys := make(map[string]*tunnel.Proxy)
 	answerHandlers := make(map[string]func(sdp string))
-	// stubs := make(map[string]*tunnel.Stub)
+	stubs := make(map[string]*tunnel.Stub)
+	stubopts := make(map[string]*StubOptions)
 
 	// Handle contacts message
 	contacts.Open(configure.Contact)
@@ -65,12 +65,10 @@ func main() {
 			}
 
 			answerHandlers[stub] = answerHandler
-			contacts.SendOffer(contact.ClientId, &contacts.Offer{
+			return contacts.SendOffer(contact.ClientId, &contacts.Offer{
 				Sdp:  sdp,
 				Stub: stub,
 			})
-
-			return nil
 		}
 
 		err := proxy.Open(offerSender, func(stream *tunnel.Stream) {
@@ -82,10 +80,47 @@ func main() {
 		})
 		if err != nil {
 			errc <- err
+			break
 		}
 
 		defer proxy.Close()
 	}
+
+	// Create stubs
+	for _, opts := range configure.Stubs {
+		stubopts[opts.Name] = opts
+		stub := tunnel.NewStub(configure.Ices)
+		stubs[opts.Name] = stub
+	}
+
+	contacts.HandleOfferFunc(func(fromClient string, offer *contacts.Offer) {
+		var (
+			stubContact = offer.Stub
+			stub        = stubs[stubContact]
+			upstream    = stubopts[stubContact].Upstream
+		)
+
+		if stub != nil {
+			answerSender := func(sdp string) error {
+				return contacts.SendAnswer(fromClient, &contacts.Answer{
+					Sdp:  sdp,
+					Stub: stubContact,
+				})
+			}
+
+			err := stub.Open(offer.Sdp, answerSender, func(stream *tunnel.Stream) {
+				// 启动Stub与upstream的连接
+				go func() {
+					log.Println("stub", stubContact, "serve and dail upstream", upstream, "...")
+					errc <- stubDailAndServe(stream, upstream)
+				}()
+			})
+
+			if err != nil {
+				errc <- err
+			}
+		}
+	})
 
 	// Run!
 	log.Println("exit:", <-errc)
@@ -130,6 +165,42 @@ func proxyListenAndServe(listenPort string, stream io.ReadWriteCloser) error {
 			io.Copy(s, c)
 			go io.Copy(c, s)
 			log.Println("proxy, to disconnect ...")
+		}()
+	}
+}
+
+func stubDailAndServe(stream io.ReadWriteCloser, upstream string) error {
+	log.Println("stub, start yamux server ...")
+	session, err := yamux.Server(stream, nil)
+	if err != nil {
+		log.Println("stub, create yamux server failed!", err)
+		return err
+	}
+	defer session.Close()
+
+	for {
+		log.Println("stub, wait accept ...")
+		s, err := session.Accept()
+		if err != nil {
+			log.Println("stub, yamux accept failed!", err)
+			continue
+		}
+
+		go func() {
+			log.Println("stub, accepted!")
+			defer s.Close()
+
+			log.Println("stub, dial upstream", upstream, "...")
+			c, err := net.Dial("tcp", upstream)
+			if err != nil {
+				log.Println("stub, sock dial failed!", err)
+				return
+			}
+			defer c.Close()
+
+			log.Println("stub upstream dailed!")
+			io.Copy(c, s)
+			go io.Copy(s, c)
 		}()
 	}
 }

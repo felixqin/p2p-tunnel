@@ -94,15 +94,7 @@ func (p *Proxy) Open(sender OfferSender, onStreamOpen func(*Stream)) error {
 
 func (p *Proxy) Close() error {
 	log.Println("proxy close")
-	err := p.stream.Close()
-	if err != nil {
-		return err
-	}
-
-	err = p.pc.Close()
-	if err != nil {
-		return err
-	}
-
+	p.stream.Close()
+	p.pc.Close()
 	return nil
 }

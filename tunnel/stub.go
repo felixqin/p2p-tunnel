@@ -8,14 +8,14 @@ import (
 )
 
 type Stub struct {
-	pc     *webrtc.RTCPeerConnection
-	stream *Stream
+	pc           *webrtc.RTCPeerConnection
+	stream       *Stream
+	onStreamOpen func(*Stream)
 }
 
 type AnswerSender func(sdp string) error
 
 // Open(StubMessager) error
-// Stream() *io.ReadWriteCloser
 
 func NewStub(iceopts *IceOptions) *Stub {
 	s := &Stub{stream: newStream("stub")}
@@ -35,41 +35,55 @@ func NewStub(iceopts *IceOptions) *Stub {
 
 	pc.OnDataChannel(func(dc *webrtc.RTCDataChannel) {
 		log.Print("stub, OnDataChannel", dc)
-		s.stream.Open(dc, func() {})
+		s.stream.Open(dc, func() {
+			if s.onStreamOpen != nil {
+				s.onStreamOpen(s.stream)
+			}
+		})
 	})
 
 	s.pc = pc
 	return s
 }
 
-func (s *Stub) Open(sdp string, sender AnswerSender) error {
+func (s *Stub) Open(sdp string, sender AnswerSender, onStreamOpen func(*Stream)) error {
 	log.Println("stub to set remote sdp:", sdp)
+	s.onStreamOpen = onStreamOpen
 	err := s.pc.SetRemoteDescription(webrtc.RTCSessionDescription{
 		Type: webrtc.RTCSdpTypeOffer,
 		Sdp:  sdp,
 	})
 	if err != nil {
 		log.Println("stub, set remote sdp failed!", err)
+		s.stream.Close()
+		s.pc.Close()
 		return err
 	}
 
-	log.Println("proxy set remote sdp success! then to send answer to proxy ...")
+	log.Println("stub set remote sdp success! then to send answer to proxy ...")
 	answer, err := s.pc.CreateAnswer(nil)
 	if err != nil {
 		log.Println("stub, create answer failed!", err)
+		s.stream.Close()
+		s.pc.Close()
 		return err
 	}
 
 	err = sender(answer.Sdp)
 	if err != nil {
 		log.Println("stub, send answer failed!", err)
+		s.stream.Close()
+		s.pc.Close()
 		return err
 	}
 
-	log.Println("proxy send answer success!")
+	log.Println("stub send answer success!")
 	return nil
 }
 
-func (s *Stub) Stream() *Stream {
-	return s.stream
+func (s *Stub) Close() error {
+	log.Println("stub close")
+	s.stream.Close()
+	s.pc.Close()
+	return nil
 }

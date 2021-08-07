@@ -48,13 +48,17 @@ func (c *Stream) Read(b []byte) (int, error) {
 		select {
 		case buf := <-c.chaInbuf:
 			c.curInbuf = buf
+			log.Println(c.name, "set as current inbuf, len:", buf.Len())
 
 		case <-time.After(30 * time.Second):
 			return 0, fmt.Errorf("timeout")
 		}
 	}
 
-	return c.curInbuf.Read(b)
+	log.Println(c.name, "read from current inbuf ...")
+	len, err := c.curInbuf.Read(b)
+	log.Println(c.name, "read len", len, "err", err)
+	return len, err
 }
 
 func (c *Stream) Write(b []byte) (int, error) {
@@ -64,7 +68,6 @@ func (c *Stream) Write(b []byte) (int, error) {
 	}
 
 	err := c.dc.Send(datachannel.PayloadBinary{Data: b})
-	log.Println(c.name, "send error:", err)
-
+	// log.Println(c.name, "send error:", err)
 	return len(b), err
 }
