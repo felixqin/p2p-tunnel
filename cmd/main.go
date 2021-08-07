@@ -140,6 +140,7 @@ func proxyListenAndServe(listenPort string, stream io.ReadWriteCloser) error {
 			log.Println("proxy, sock accept failed!", err)
 			continue
 		}
+		// c := newLogReadWriteCloser("proxy_server", c1)
 
 		go func() {
 			log.Println("proxy, accepted!")
@@ -161,9 +162,9 @@ func proxyListenAndServe(listenPort string, stream io.ReadWriteCloser) error {
 			}
 			defer s.Close()
 
-			log.Println("proxy session opened!")
-			io.Copy(s, c)
-			go io.Copy(c, s)
+			log.Println("proxy session opened! start io copy ...")
+			go io.Copy(s, c)
+			io.Copy(c, s)
 			log.Println("proxy, to disconnect ...")
 		}()
 	}
@@ -196,11 +197,12 @@ func stubDailAndServe(stream io.ReadWriteCloser, upstream string) error {
 				log.Println("stub, sock dial failed!", err)
 				return
 			}
+			// c := newLogReadWriteCloser("stub_client", c1)
 			defer c.Close()
 
-			log.Println("stub upstream dailed!")
-			io.Copy(c, s)
-			go io.Copy(s, c)
+			log.Println("stub upstream dailed! start io copy ...")
+			go io.Copy(c, s)
+			io.Copy(s, c)
 		}()
 	}
 }
