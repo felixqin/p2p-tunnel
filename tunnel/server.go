@@ -10,7 +10,7 @@ import (
 type Server struct {
 	pc           *webrtc.RTCPeerConnection
 	stream       *Stream
-	onStreamOpen func(*Stream)
+	onStreamOpen func()
 }
 
 type AnswerSender func(sdp string) error
@@ -34,7 +34,7 @@ func NewServer(iceopts *IceServers) *Server {
 		log.Print("stub, OnDataChannel", dc)
 		s.stream.Open(dc, func() {
 			if s.onStreamOpen != nil {
-				s.onStreamOpen(s.stream)
+				s.onStreamOpen()
 			}
 		})
 	})
@@ -43,7 +43,7 @@ func NewServer(iceopts *IceServers) *Server {
 	return s
 }
 
-func (s *Server) Open(sdp string, sender AnswerSender, onStreamOpen func(*Stream)) error {
+func (s *Server) Open(sdp string, sender AnswerSender, onStreamOpen func()) error {
 	log.Println("stub to set remote sdp:", sdp)
 	s.onStreamOpen = onStreamOpen
 	err := s.pc.SetRemoteDescription(webrtc.RTCSessionDescription{
@@ -74,7 +74,14 @@ func (s *Server) Open(sdp string, sender AnswerSender, onStreamOpen func(*Stream
 
 func (s *Server) Close() error {
 	log.Println("stub close")
-	s.stream.Close()
 	s.pc.Close()
 	return nil
+}
+
+func (s *Server) Read(b []byte) (int, error) {
+	return s.stream.Read(b)
+}
+
+func (s *Server) Write(b []byte) (int, error) {
+	return s.stream.Write(b)
 }

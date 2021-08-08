@@ -36,22 +36,23 @@ func main() {
 	defer contacts.Close()
 
 	// create and start tunnel server
-	tunnelServer := tunnel.NewServer(configure.Ices)
-	defer tunnelServer.Close()
 	contacts.HandleOfferFunc(func(fromClient string, offer *contacts.Offer) {
+		tunnelServer := tunnel.NewServer(configure.Ices) // 为每个 offer 创建一个 server 实例
 		answerSender := func(sdp string) error {
 			return contacts.SendAnswer(fromClient, &contacts.Answer{
 				Sdp: sdp,
 			})
 		}
 
-		err := tunnelServer.Open(offer.Sdp, answerSender, func(stream *tunnel.Stream) {
+		err := tunnelServer.Open(offer.Sdp, answerSender, func() {
 			go func() {
 				log.Println("stub serve ...")
-				errc <- stubServe(stream)
+				err := stubServe(tunnelServer)
+				if err != nil {
+					log.Println("stub serve failed! err", err)
+				}
 			}()
 		})
-
 		if err != nil {
 			errc <- err
 		}
@@ -73,11 +74,10 @@ func main() {
 
 		// create and start tunnel client
 		tunnelClient := tunnel.NewClient(configure.Ices)
-		defer tunnelClient.Close()
 		tunnelClients[serverContactName] = tunnelClient
 
 		offerSender := makeOfferSender(serverContactName)
-		err := tunnelClient.Open(offerSender, func(stream *tunnel.Stream) {
+		err := tunnelClient.Open(offerSender, func() {
 			for _, proxyOpts := range configure.Proxys {
 				if !proxyOpts.Enable || proxyOpts.Contact != serverContactName {
 					// 跳过不通过此contact连接的代理服务
@@ -88,7 +88,7 @@ func main() {
 				stub := proxyOpts.Stub
 				go func() {
 					log.Println("listen proxy on", port, "for stub", stub, "...")
-					errc <- proxyListenAndServe(port, stream, stub)
+					errc <- proxyListenAndServe(port, tunnelClient, stub)
 				}()
 			}
 		})
@@ -174,8 +174,7 @@ func stubServe(stream io.ReadWriteCloser) error {
 		s, err := session.Accept()
 		if err != nil {
 			log.Println("stub, yamux accept failed!", err)
-			// time.Sleep(5 * time.Second)
-			continue
+			return err
 		}
 
 		go func() {

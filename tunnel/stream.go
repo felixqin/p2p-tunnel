@@ -38,11 +38,6 @@ func (c *Stream) Open(dc *webrtc.RTCDataChannel, onOpen func()) {
 	})
 }
 
-func (c *Stream) Close() error {
-	log.Println(c.name, "stream close")
-	return nil
-}
-
 func (c *Stream) Read(b []byte) (int, error) {
 	// log.Println(c.name, "read from inbuf ...")
 	if c.curInbuf == nil || c.curInbuf.Len() == 0 {
