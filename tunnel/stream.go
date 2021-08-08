@@ -51,8 +51,8 @@ func (c *Stream) Read(b []byte) (int, error) {
 			c.curInbuf = buf
 			// log.Println(c.name, "set as current inbuf, len:", buf.Len())
 
-		case <-time.After(30 * time.Second):
-			return 0, fmt.Errorf("timeout")
+		case <-time.After(5 * time.Minute):
+			return 0, fmt.Errorf("read %s stream timeout", c.name)
 		}
 	}
 

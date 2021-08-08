@@ -30,7 +30,7 @@ stubs:
     enable: true
     upstream: "127.0.0.1:22"
   - name: "vnc_stub1"
-    enable: true
+    enable: false
     upstream: "127.0.0.1:5901"
 
 proxys:
@@ -39,6 +39,6 @@ proxys:
     contact: "my_test_node"
     stub: "ssh_stub1"
   - listen: ":55901"
-    enable: true
+    enable: false
     contact: "my_test_node"
     stub: "vnc_stub1"

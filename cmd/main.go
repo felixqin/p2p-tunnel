@@ -55,6 +55,10 @@ func main() {
 			stubContact = opts.Contact
 		)
 
+		if !opts.Enable {
+			continue
+		}
+
 		proxy := tunnel.NewProxy(configure.Ices)
 		proxys[opts.Stub] = proxy
 
@@ -88,6 +92,10 @@ func main() {
 
 	// Create stubs
 	for _, opts := range configure.Stubs {
+		if !opts.Enable {
+			continue
+		}
+
 		stubopts[opts.Name] = opts
 		stub := tunnel.NewStub(configure.Ices)
 		stubs[opts.Name] = stub
@@ -100,25 +108,27 @@ func main() {
 			upstream    = stubopts[stubContact].Upstream
 		)
 
-		if stub != nil {
-			answerSender := func(sdp string) error {
-				return contacts.SendAnswer(fromClient, &contacts.Answer{
-					Sdp:  sdp,
-					Stub: stubContact,
-				})
-			}
+		if stub == nil {
+			return
+		}
 
-			err := stub.Open(offer.Sdp, answerSender, func(stream *tunnel.Stream) {
-				// 启动Stub与upstream的连接
-				go func() {
-					log.Println("stub", stubContact, "serve and dail upstream", upstream, "...")
-					errc <- stubDailAndServe(stream, upstream)
-				}()
+		answerSender := func(sdp string) error {
+			return contacts.SendAnswer(fromClient, &contacts.Answer{
+				Sdp:  sdp,
+				Stub: stubContact,
 			})
+		}
 
-			if err != nil {
-				errc <- err
-			}
+		err := stub.Open(offer.Sdp, answerSender, func(stream *tunnel.Stream) {
+			// 启动Stub与upstream的连接
+			go func() {
+				log.Println("stub", stubContact, "serve and dail upstream", upstream, "...")
+				errc <- stubDailAndServe(stream, upstream)
+			}()
+		})
+
+		if err != nil {
+			errc <- err
 		}
 	})
 
@@ -133,6 +143,14 @@ func proxyListenAndServe(listenPort string, stream io.ReadWriteCloser) error {
 	}
 	defer l.Close()
 
+	log.Println("proxy, to create yamux client ...")
+	session, err := yamux.Client(stream, nil)
+	if err != nil {
+		log.Println("proxy, create yamux client failed!", err)
+		return err
+	}
+	defer session.Close()
+
 	for {
 		log.Println("proxy, wait accept ...")
 		c, err := l.Accept()
@@ -145,14 +163,6 @@ func proxyListenAndServe(listenPort string, stream io.ReadWriteCloser) error {
 		go func() {
 			log.Println("proxy, accepted!")
 			defer c.Close()
-
-			log.Println("proxy, to create yamux client ...")
-			session, err := yamux.Client(stream, nil)
-			if err != nil {
-				log.Println("proxy, create yamux client failed!", err)
-				return
-			}
-			defer session.Close()
 
 			log.Println("proxy, to open yamux session ...")
 			s, err := session.Open()
@@ -184,6 +194,7 @@ func stubDailAndServe(stream io.ReadWriteCloser, upstream string) error {
 		s, err := session.Accept()
 		if err != nil {
 			log.Println("stub, yamux accept failed!", err)
+			// time.Sleep(5 * time.Second)
 			continue
 		}
 
