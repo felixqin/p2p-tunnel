@@ -39,7 +39,6 @@ func (p *Client) Open(sender OfferSender, onStreamOpen func(*Stream)) error {
 	dc, err := p.pc.CreateDataChannel("data", nil)
 	if err != nil {
 		log.Println("proxy, create dc failed:", err)
-		p.pc.Close()
 		return err
 	}
 
@@ -49,8 +48,6 @@ func (p *Client) Open(sender OfferSender, onStreamOpen func(*Stream)) error {
 	offer, err := p.pc.CreateOffer(nil)
 	if err != nil {
 		log.Println("proxy, create offer error:", err)
-		p.stream.Close()
-		p.pc.Close()
 		return err
 	}
 

@@ -28,6 +28,9 @@ ices:
 proxys:
   - listen: ":50022"
     enable: true
-    contact: "my_test_node"
-    stub: "ssh"
-
+    contact: "my_test_stub"
+    stub: "ssh_stub1"
+  - listen: ":55901"
+    enable: false
+    contact: "my_test_stub"
+    stub: "vnc_stub1"

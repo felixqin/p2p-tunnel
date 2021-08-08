@@ -28,9 +28,6 @@ func NewServer(iceopts *IceServers) *Server {
 
 	pc.OnICEConnectionStateChange(func(state ice.ConnectionState) {
 		log.Print("stub, pc ice state change:", state)
-		if state == ice.ConnectionStateDisconnected {
-			pc.Close()
-		}
 	})
 
 	pc.OnDataChannel(func(dc *webrtc.RTCDataChannel) {
@@ -55,8 +52,6 @@ func (s *Server) Open(sdp string, sender AnswerSender, onStreamOpen func(*Stream
 	})
 	if err != nil {
 		log.Println("stub, set remote sdp failed!", err)
-		s.stream.Close()
-		s.pc.Close()
 		return err
 	}
 
@@ -64,16 +59,12 @@ func (s *Server) Open(sdp string, sender AnswerSender, onStreamOpen func(*Stream
 	answer, err := s.pc.CreateAnswer(nil)
 	if err != nil {
 		log.Println("stub, create answer failed!", err)
-		s.stream.Close()
-		s.pc.Close()
 		return err
 	}
 
 	err = sender(answer.Sdp)
 	if err != nil {
 		log.Println("stub, send answer failed!", err)
-		s.stream.Close()
-		s.pc.Close()
 		return err
 	}
 

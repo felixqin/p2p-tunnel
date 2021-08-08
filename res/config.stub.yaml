@@ -1,5 +1,5 @@
 
-contacts:
+contact:
   name: "my_test_stub"
   server: "tcp://dev.joyteam.cc:1883"
   username: "test"
@@ -25,9 +25,10 @@ ices:
   # - "stun:stun.internetcalls.com:3478"
   # - "stun:numb.viagenie.ca:3478"
 
-proxys:
-  - listen: ":50022"
+stubs:
+  - name: "ssh_stub1"
     enable: true
-    contact: "my_test_node"
-    stub: "ssh"
-
+    upstream: "127.0.0.1:22"
+  - name: "vnc_stub1"
+    enable: false
+    upstream: "127.0.0.1:5901"
