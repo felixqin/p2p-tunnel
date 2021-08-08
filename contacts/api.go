@@ -1,7 +1,5 @@
 package contacts
 
-import "fmt"
-
 type Options struct {
 	Name     string `yaml:"name"`
 	Server   string `yaml:"server"`
@@ -58,11 +56,5 @@ func SendAnswer(clientId string, answer *Answer) error {
 }
 
 func FindContact(name string) (*Contact, error) {
-	for _, contact := range contacts {
-		if contact.Name == name {
-			return contact, nil
-		}
-	}
-
-	return nil, fmt.Errorf("contact not found")
+	return findContact(name)
 }

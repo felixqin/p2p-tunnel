@@ -1,6 +1,8 @@
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/eclipse/paho.mqtt.golang v1.2.0 h1:1F8mhG9+aO5/xpdtFkW4SxOJB67ukuDC3t2y2qayIX0=
 github.com/eclipse/paho.mqtt.golang v1.2.0/go.mod h1:H9keYFcgq3Qr5OUJm/JZI/i6U7joQ8SYLhZwfeOo6Ts=
+github.com/hashicorp/yamux v0.0.0-20210707203944-259a57b3608c h1:nqkErwUGfpZZMqj29WZ9U/wz2OpJVDuiokLhE/3Y7IQ=
+github.com/hashicorp/yamux v0.0.0-20210707203944-259a57b3608c/go.mod h1:CtWFDAQgb7dxtzFs4tWbplKIe2jSi3+5vKbgIO0SLnQ=
 github.com/pions/dtls v1.0.2 h1:VOIp3whGooFWS4X0RBOXaykNORYr05yjs8mlNYqRc+4=
 github.com/pions/dtls v1.0.2/go.mod h1:T22vu8VCOxNmIrbe3nnM1UdIo3m1Bx5CJNkHyehahLg=
 github.com/pions/pkg v0.0.0-20181115215726-b60cd756f712 h1:ciXO7F7PusyAzW/EZJt01bETgfTxP/BIGoWQ15pBP54=

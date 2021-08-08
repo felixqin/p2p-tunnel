@@ -1,105 +1,89 @@
 package tunnel
 
 import (
-	"io"
 	"log"
-	"net"
 
-	"github.com/felixqin/p2p-tunnel/contacts"
 	"github.com/pions/webrtc"
-	"github.com/pions/webrtc/pkg/datachannel"
 	"github.com/pions/webrtc/pkg/ice"
 )
 
-type StubOptions struct {
-	Name   string `yaml:"name"`
-	Enable bool   `yaml:"enable"`
-	Addr   string `yaml:"addr"`
-}
-
 type Stub struct {
-	stubOptions *StubOptions
-	iceOptions  *IceOptions
+	pc           *webrtc.RTCPeerConnection
+	stream       *Stream
+	onStreamOpen func(*Stream)
 }
 
-func NewStub(opts *StubOptions, iceopts *IceOptions) *Stub {
-	return &Stub{opts, iceopts}
-}
+type AnswerSender func(sdp string) error
 
-func (s *Stub) HandleOffer(fromClient string, offer *contacts.Offer) {
-	go func() {
-		log.Println("handler offer, sdp:", offer.Sdp)
-		pc, err := newWebRTC(s.iceOptions)
-		if err != nil {
-			log.Println("rtc error:", err)
-			return
-		}
+// Open(StubMessager) error
 
-		sock, err := net.Dial("tcp", s.stubOptions.Addr)
-		if err != nil {
-			log.Println("sock dial filed:", err)
+func NewStub(iceopts *IceOptions) *Stub {
+	s := &Stub{stream: newStream("stub")}
+
+	pc, err := newWebRTC(iceopts)
+	if err != nil {
+		log.Println("stub, rtc error:", err)
+		return nil
+	}
+
+	pc.OnICEConnectionStateChange(func(state ice.ConnectionState) {
+		log.Print("stub, pc ice state change:", state)
+		if state == ice.ConnectionStateDisconnected {
 			pc.Close()
-			return
 		}
+	})
 
-		pc.OnICEConnectionStateChange(func(state ice.ConnectionState) {
-			log.Print("pc ice state change:", state)
-			if state == ice.ConnectionStateDisconnected {
-				pc.Close()
-				sock.Close()
+	pc.OnDataChannel(func(dc *webrtc.RTCDataChannel) {
+		log.Print("stub, OnDataChannel", dc)
+		s.stream.Open(dc, func() {
+			if s.onStreamOpen != nil {
+				s.onStreamOpen(s.stream)
 			}
 		})
+	})
 
-		pc.OnDataChannel(func(dc *webrtc.RTCDataChannel) {
-			//dc.Lock()
-			dc.OnOpen(func() {
-				log.Print("dial:", s.stubOptions.Addr)
-				io.Copy(newWebRTCWriter(dc), sock)
-				log.Println("disconnected")
-			})
+	s.pc = pc
+	return s
+}
 
-			dc.Onmessage(func(payload datachannel.Payload) {
-				switch p := payload.(type) {
-				case *datachannel.PayloadBinary:
-					_, err := sock.Write(p.Data)
-					if err != nil {
-						log.Println("ssh write failed:", err)
-						pc.Close()
-						return
-					}
-				}
-			})
-			//dc.Unlock()
-		})
+func (s *Stub) Open(sdp string, sender AnswerSender, onStreamOpen func(*Stream)) error {
+	log.Println("stub to set remote sdp:", sdp)
+	s.onStreamOpen = onStreamOpen
+	err := s.pc.SetRemoteDescription(webrtc.RTCSessionDescription{
+		Type: webrtc.RTCSdpTypeOffer,
+		Sdp:  sdp,
+	})
+	if err != nil {
+		log.Println("stub, set remote sdp failed!", err)
+		s.stream.Close()
+		s.pc.Close()
+		return err
+	}
 
-		err = pc.SetRemoteDescription(webrtc.RTCSessionDescription{
-			Type: webrtc.RTCSdpTypeOffer,
-			Sdp:  offer.Sdp,
-		})
-		if err != nil {
-			log.Println("rtc error:", err)
-			pc.Close()
-			sock.Close()
-			return
-		}
+	log.Println("stub set remote sdp success! then to send answer to proxy ...")
+	answer, err := s.pc.CreateAnswer(nil)
+	if err != nil {
+		log.Println("stub, create answer failed!", err)
+		s.stream.Close()
+		s.pc.Close()
+		return err
+	}
 
-		answer, err := pc.CreateAnswer(nil)
-		if err != nil {
-			log.Println("rtc error:", err)
-			pc.Close()
-			sock.Close()
-			return
-		}
+	err = sender(answer.Sdp)
+	if err != nil {
+		log.Println("stub, send answer failed!", err)
+		s.stream.Close()
+		s.pc.Close()
+		return err
+	}
 
-		err = contacts.SendAnswer(fromClient, &contacts.Answer{
-			Sdp:  answer.Sdp,
-			Stub: s.stubOptions.Name,
-		})
-		if err != nil {
-			log.Println("rtc error:", err)
-			pc.Close()
-			sock.Close()
-			return
-		}
-	}()
+	log.Println("stub send answer success!")
+	return nil
+}
+
+func (s *Stub) Close() error {
+	log.Println("stub close")
+	s.stream.Close()
+	s.pc.Close()
+	return nil
 }

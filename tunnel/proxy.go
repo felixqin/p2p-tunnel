@@ -1,135 +1,100 @@
 package tunnel
 
 import (
-	"io"
 	"log"
-	"net"
+	"time"
 
-	"github.com/felixqin/p2p-tunnel/contacts"
 	"github.com/pions/webrtc"
-	"github.com/pions/webrtc/pkg/datachannel"
 	"github.com/pions/webrtc/pkg/ice"
 )
 
-type ProxyOptions struct {
-	Listen  string `yaml:"listen"`
-	Enable  bool   `yaml:"enable"`
-	Contact string `yaml:"contact"`
-	Stub    string `yaml:"stub"`
-}
-
 type Proxy struct {
-	proxyOptions  *ProxyOptions
-	iceOptions    *IceOptions
-	answerHandler func(fromClient string, answer *contacts.Answer)
+	pc     *webrtc.RTCPeerConnection
+	stream *Stream
 }
 
-func NewProxy(opts *ProxyOptions, iceopts *IceOptions) *Proxy {
-	return &Proxy{
-		proxyOptions: opts,
-		iceOptions:   iceopts,
-	}
-}
+type OfferSender func(sdp string, answerHandler func(sdp string)) error
 
-func (p *Proxy) HandleAnswer(fromClient string, answer *contacts.Answer) {
-	if p.answerHandler != nil {
-		p.answerHandler(fromClient, answer)
-	}
-}
+// Open(ProxyMessager) error
+// Stream() *io.ReadWriteCloser
 
-func (p *Proxy) ListenAndServe() error {
-	log.Println("listen", p.proxyOptions.Stub, "on", p.proxyOptions.Listen, "...")
-	l, err := net.Listen("tcp", p.proxyOptions.Listen)
+func NewProxy(iceopts *IceOptions) *Proxy {
+	p := &Proxy{stream: newStream("proxy")}
+
+	pc, err := newWebRTC(iceopts)
 	if err != nil {
-		return err
-	}
-
-	for {
-		sock, err := l.Accept()
-		if err != nil {
-			log.Println("accept failed!", err)
-			continue
-		}
-
-		go p.connectStub(sock)
-	}
-}
-
-func (p *Proxy) connectStub(sock net.Conn) {
-	log.Println("connect stub ...")
-	pc, err := newWebRTC(p.iceOptions)
-	if err != nil {
-		log.Println("rtc error:", err)
-		return
+		log.Println("proxy, rtc error:", err)
+		return nil
 	}
 
 	pc.OnICEConnectionStateChange(func(state ice.ConnectionState) {
-		log.Print("pc ice state change:", state)
+		log.Print("proxy, pc ice state change:", state)
 	})
 
-	dc, err := pc.CreateDataChannel("data", nil)
+	p.pc = pc
+	return p
+}
+
+func (p *Proxy) Open(sender OfferSender, onStreamOpen func(*Stream)) error {
+	dc, err := p.pc.CreateDataChannel("data", nil)
 	if err != nil {
-		log.Println("create dc failed:", err)
-		pc.Close()
-		return
+		log.Println("proxy, create dc failed:", err)
+		p.pc.Close()
+		return err
 	}
 
-	//dc.Lock()
-	dc.OnOpen(func() {
-		io.Copy(newWebRTCWriter(dc), sock)
-		pc.Close()
-		log.Println("disconnected")
-	})
+	log.Print("proxy, DataChannel:", dc)
+	p.stream.Open(dc, func() { onStreamOpen(p.stream) })
 
-	dc.OnMessage(func(payload datachannel.Payload) {
-		switch p := payload.(type) {
-		case *datachannel.PayloadBinary:
-			_, err := sock.Write(p.Data)
+	offer, err := p.pc.CreateOffer(nil)
+	if err != nil {
+		log.Println("proxy, create offer error:", err)
+		p.stream.Close()
+		p.pc.Close()
+		return err
+	}
+
+	chAnswer := make(chan string)
+	answerHandler := func(sdp string) {
+		chAnswer <- sdp
+	}
+
+	go func() {
+		for {
+			log.Println("proxy, to send offer ...")
+			err := sender(offer.Sdp, answerHandler)
 			if err != nil {
-				log.Println("sock write failed:", err)
-				pc.Close()
+				log.Println("proxy, send offer failed!", err)
+			}
+
+			select {
+			case answer := <-chAnswer:
+				log.Println("proxy to set remote sdp:", answer)
+				err := p.pc.SetRemoteDescription(webrtc.RTCSessionDescription{
+					Type: webrtc.RTCSdpTypeAnswer,
+					Sdp:  answer,
+				})
+				if err != nil {
+					log.Println("proxy, set remote sdp failed!", err)
+					break
+				}
+
+				log.Println("proxy set remote sdp success!")
 				return
+
+			case <-time.After(10 * time.Second):
+				log.Println("wait answer timeout!")
+				break
 			}
 		}
-	})
-	//dc.Unlock()
-	log.Print("DataChannel:", dc)
+	}()
 
-	// handle receive answer
-	p.answerHandler = func(fromClient string, answer *contacts.Answer) {
-		log.Println("handler answer, sdp:", answer.Sdp)
-		err := pc.SetRemoteDescription(webrtc.RTCSessionDescription{
-			Type: webrtc.RTCSdpTypeAnswer,
-			Sdp:  answer.Sdp,
-		})
-		if err != nil {
-			log.Println("set remote sdp failed!", err)
-			pc.Close()
-			return
-		}
-	}
+	return nil
+}
 
-	offer, err := pc.CreateOffer(nil)
-	if err != nil {
-		log.Println("create offer error:", err)
-		pc.Close()
-		return
-	}
-
-	contact, err := contacts.FindContact(p.proxyOptions.Contact)
-	if err != nil {
-		log.Println("not found contact in contacts!", contact)
-		pc.Close()
-		return
-	}
-
-	err = contacts.SendOffer(contact.ClientId, &contacts.Offer{
-		Sdp:  offer.Sdp,
-		Stub: p.proxyOptions.Stub,
-	})
-	if err != nil {
-		log.Println("push error:", err)
-		pc.Close()
-		return
-	}
+func (p *Proxy) Close() error {
+	log.Println("proxy close")
+	p.stream.Close()
+	p.pc.Close()
+	return nil
 }

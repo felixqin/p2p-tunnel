@@ -1,6 +1,9 @@
 package contacts
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 var contacts []*Contact
 
@@ -17,4 +20,14 @@ func addContact(contact *Contact) error {
 	contacts = append(contacts, contact)
 	// log.Println("contacts:", contacts)
 	return nil
+}
+
+func findContact(name string) (*Contact, error) {
+	for _, contact := range contacts {
+		if contact.Name == name {
+			return contact, nil
+		}
+	}
+
+	return nil, fmt.Errorf("contact not found")
 }

@@ -2,6 +2,7 @@ package contacts
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 )
 
@@ -104,6 +105,10 @@ func onSendOffer(fromClient string, data []byte) error {
 		return err
 	}
 
+	if offerHandler == nil {
+		return fmt.Errorf("offer handler is null")
+	}
+
 	offerHandler(fromClient, &offer)
 	return nil
 }
@@ -113,6 +118,10 @@ func onSendAnswer(fromClient string, data []byte) error {
 	err := json.Unmarshal(data, &answer)
 	if err != nil {
 		return err
+	}
+
+	if answerHandler == nil {
+		return fmt.Errorf("answer handler is null")
 	}
 
 	answerHandler(fromClient, &answer)
