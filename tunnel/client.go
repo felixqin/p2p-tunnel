@@ -8,7 +8,7 @@ import (
 	"github.com/pions/webrtc/pkg/ice"
 )
 
-type Proxy struct {
+type Client struct {
 	pc     *webrtc.RTCPeerConnection
 	stream *Stream
 }
@@ -18,8 +18,8 @@ type OfferSender func(sdp string, answerHandler func(sdp string)) error
 // Open(ProxyMessager) error
 // Stream() *io.ReadWriteCloser
 
-func NewProxy(iceopts *IceOptions) *Proxy {
-	p := &Proxy{stream: newStream("proxy")}
+func NewClient(iceopts *IceServers) *Client {
+	p := &Client{stream: newStream("proxy")}
 
 	pc, err := newWebRTC(iceopts)
 	if err != nil {
@@ -35,7 +35,7 @@ func NewProxy(iceopts *IceOptions) *Proxy {
 	return p
 }
 
-func (p *Proxy) Open(sender OfferSender, onStreamOpen func(*Stream)) error {
+func (p *Client) Open(sender OfferSender, onStreamOpen func(*Stream)) error {
 	dc, err := p.pc.CreateDataChannel("data", nil)
 	if err != nil {
 		log.Println("proxy, create dc failed:", err)
@@ -92,7 +92,7 @@ func (p *Proxy) Open(sender OfferSender, onStreamOpen func(*Stream)) error {
 	return nil
 }
 
-func (p *Proxy) Close() error {
+func (p *Client) Close() error {
 	log.Println("proxy close")
 	p.stream.Close()
 	p.pc.Close()

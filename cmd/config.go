@@ -10,24 +10,24 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type ProxyOptions struct {
+type ProxyOption struct {
 	Listen  string `yaml:"listen"`
 	Enable  bool   `yaml:"enable"`
 	Stub    string `yaml:"stub"`    // 要连接到的对方 Stub 名称
 	Contact string `yaml:"contact"` // Stub 所在在联系人名称
 }
 
-type StubOptions struct {
+type StubOption struct {
 	Name     string `yaml:"name"`
 	Enable   bool   `yaml:"enable"`
 	Upstream string `yaml:"upstream"`
 }
 
 var configure struct {
-	Contact *contacts.Options  `yaml:"contact"`
-	Ices    *tunnel.IceOptions `yaml:"ices"`
-	Proxys  []*ProxyOptions    `yaml:"proxys"`
-	Stubs   []*StubOptions     `yaml:"stubs"`
+	Contact *contacts.Option   `yaml:"contact"`
+	Ices    *tunnel.IceServers `yaml:"ices"`
+	Proxys  []*ProxyOption     `yaml:"proxys"`
+	Stubs   []*StubOption      `yaml:"stubs"`
 }
 
 func init() {

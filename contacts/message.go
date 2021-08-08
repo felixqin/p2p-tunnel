@@ -45,8 +45,8 @@ func sendMessageToUser(to string, cmd string, data interface{}) error {
 		Command: cmd,
 		Data:    data,
 		From: &messageFrom{
-			User:   options.Username,
-			Client: options.clientId,
+			User:   option.Username,
+			Client: option.clientId,
 		},
 	})
 	if err != nil {
@@ -66,8 +66,8 @@ func sendMessageToClient(to string, cmd string, data interface{}) error {
 		Command: cmd,
 		Data:    data,
 		From: &messageFrom{
-			User:   options.Username,
-			Client: options.clientId,
+			User:   option.Username,
+			Client: option.clientId,
 		},
 	})
 	if err != nil {

@@ -7,7 +7,7 @@ import (
 	"github.com/pions/webrtc/pkg/ice"
 )
 
-type Stub struct {
+type Server struct {
 	pc           *webrtc.RTCPeerConnection
 	stream       *Stream
 	onStreamOpen func(*Stream)
@@ -17,8 +17,8 @@ type AnswerSender func(sdp string) error
 
 // Open(StubMessager) error
 
-func NewStub(iceopts *IceOptions) *Stub {
-	s := &Stub{stream: newStream("stub")}
+func NewServer(iceopts *IceServers) *Server {
+	s := &Server{stream: newStream("stub")}
 
 	pc, err := newWebRTC(iceopts)
 	if err != nil {
@@ -46,7 +46,7 @@ func NewStub(iceopts *IceOptions) *Stub {
 	return s
 }
 
-func (s *Stub) Open(sdp string, sender AnswerSender, onStreamOpen func(*Stream)) error {
+func (s *Server) Open(sdp string, sender AnswerSender, onStreamOpen func(*Stream)) error {
 	log.Println("stub to set remote sdp:", sdp)
 	s.onStreamOpen = onStreamOpen
 	err := s.pc.SetRemoteDescription(webrtc.RTCSessionDescription{
@@ -81,7 +81,7 @@ func (s *Stub) Open(sdp string, sender AnswerSender, onStreamOpen func(*Stream))
 	return nil
 }
 
-func (s *Stub) Close() error {
+func (s *Server) Close() error {
 	log.Println("stub close")
 	s.stream.Close()
 	s.pc.Close()

@@ -1,6 +1,6 @@
 package contacts
 
-type Options struct {
+type Option struct {
 	Name     string `yaml:"name"`
 	Server   string `yaml:"server"`
 	Username string `yaml:"username"`
@@ -16,22 +16,20 @@ type Contact struct {
 }
 
 type Offer struct {
-	Sdp  string `json:"sdp"`
-	Stub string `json:"stub"`
+	Sdp string `json:"sdp"`
 }
 
 type Answer struct {
-	Sdp  string `json:"sdp"`
-	Stub string `json:"stub"`
+	Sdp string `json:"sdp"`
 }
 
-var options Options
+var option *Option
 
-func Open(opts *Options) {
-	options = *opts
-	options.clientId = opts.Name + "_" + makeRandomString(8)
+func Open(opt *Option) {
+	option = opt
+	option.clientId = opt.Name + "_" + makeRandomString(8)
 	go func() {
-		startMqtt(opts.Server, options.clientId, opts.Username, opts.Password)
+		startMqtt(opt.Server, option.clientId, opt.Username, opt.Password)
 	}()
 }
 

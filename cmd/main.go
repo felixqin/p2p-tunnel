@@ -31,112 +31,78 @@ func main() {
 		errc <- terminateError
 	}()
 
-	proxys := make(map[string]*tunnel.Proxy)
-	answerHandlers := make(map[string]func(sdp string))
-	stubs := make(map[string]*tunnel.Stub)
-	stubopts := make(map[string]*StubOptions)
-
 	// Handle contacts message
 	contacts.Open(configure.Contact)
 	defer contacts.Close()
 
-	contacts.HandleAnswerFunc(func(fromClient string, answer *contacts.Answer) {
-		handler := answerHandlers[answer.Stub]
-		if handler != nil {
-			handler(answer.Sdp)
-		}
-	})
-
-	// Create and start proxy services
-	for _, opts := range configure.Proxys {
-		var (
-			port        = opts.Listen
-			stub        = opts.Stub
-			stubContact = opts.Contact
-		)
-
-		if !opts.Enable {
-			continue
-		}
-
-		proxy := tunnel.NewProxy(configure.Ices)
-		proxys[opts.Stub] = proxy
-
-		offerSender := func(sdp string, answerHandler func(sdp string)) error {
-			contact, err := contacts.FindContact(stubContact)
-			if err != nil {
-				return err
-			}
-
-			answerHandlers[stub] = answerHandler
-			return contacts.SendOffer(contact.ClientId, &contacts.Offer{
-				Sdp:  sdp,
-				Stub: stub,
+	// create and start tunnel server
+	tunnelServer := tunnel.NewServer(configure.Ices)
+	defer tunnelServer.Close()
+	contacts.HandleOfferFunc(func(fromClient string, offer *contacts.Offer) {
+		answerSender := func(sdp string) error {
+			return contacts.SendAnswer(fromClient, &contacts.Answer{
+				Sdp: sdp,
 			})
 		}
 
-		err := proxy.Open(offerSender, func(stream *tunnel.Stream) {
-			// 启动代理侦听服务和建立与Stub的连接
+		err := tunnelServer.Open(offer.Sdp, answerSender, func(stream *tunnel.Stream) {
 			go func() {
-				log.Println("listen proxy on", port, "for stub", stub, "...")
-				errc <- proxyListenAndServe(port, stream)
+				log.Println("stub serve ...")
+				errc <- stubServe(stream)
 			}()
+		})
+
+		if err != nil {
+			errc <- err
+		}
+	})
+
+	// create clients for all proxy contacts
+	contacts.HandleAnswerFunc(handleAnswer)
+	tunnelClients := make(map[string]*tunnel.Client)
+	for _, clientOpts := range configure.Proxys {
+		if !clientOpts.Enable {
+			continue
+		}
+
+		serverContactName := clientOpts.Contact
+		if tunnelClients[serverContactName] != nil {
+			// tunnel client 创建过无需再创建，直接跳过
+			continue
+		}
+
+		// create and start tunnel client
+		tunnelClient := tunnel.NewClient(configure.Ices)
+		defer tunnelClient.Close()
+		tunnelClients[serverContactName] = tunnelClient
+
+		offerSender := makeOfferSender(serverContactName)
+		err := tunnelClient.Open(offerSender, func(stream *tunnel.Stream) {
+			for _, proxyOpts := range configure.Proxys {
+				if !proxyOpts.Enable || proxyOpts.Contact != serverContactName {
+					// 跳过不通过此contact连接的代理服务
+					continue
+				}
+
+				port := proxyOpts.Listen
+				stub := proxyOpts.Stub
+				go func() {
+					log.Println("listen proxy on", port, "for stub", stub, "...")
+					errc <- proxyListenAndServe(port, stream, stub)
+				}()
+			}
 		})
 		if err != nil {
 			errc <- err
 			break
 		}
-
-		defer proxy.Close()
 	}
-
-	// Create stubs
-	for _, opts := range configure.Stubs {
-		if !opts.Enable {
-			continue
-		}
-
-		stubopts[opts.Name] = opts
-		stub := tunnel.NewStub(configure.Ices)
-		stubs[opts.Name] = stub
-	}
-
-	contacts.HandleOfferFunc(func(fromClient string, offer *contacts.Offer) {
-		var (
-			stubContact = offer.Stub
-			stub        = stubs[stubContact]
-			upstream    = stubopts[stubContact].Upstream
-		)
-
-		if stub == nil {
-			return
-		}
-
-		answerSender := func(sdp string) error {
-			return contacts.SendAnswer(fromClient, &contacts.Answer{
-				Sdp:  sdp,
-				Stub: stubContact,
-			})
-		}
-
-		err := stub.Open(offer.Sdp, answerSender, func(stream *tunnel.Stream) {
-			// 启动Stub与upstream的连接
-			go func() {
-				log.Println("stub", stubContact, "serve and dail upstream", upstream, "...")
-				errc <- stubDailAndServe(stream, upstream)
-			}()
-		})
-
-		if err != nil {
-			errc <- err
-		}
-	})
 
 	// Run!
 	log.Println("exit:", <-errc)
 }
 
-func proxyListenAndServe(listenPort string, stream io.ReadWriteCloser) error {
+func proxyListenAndServe(listenPort string, stream io.ReadWriteCloser, stub string) error {
 	l, err := net.Listen("tcp", listenPort)
 	if err != nil {
 		return err
@@ -172,6 +138,20 @@ func proxyListenAndServe(listenPort string, stream io.ReadWriteCloser) error {
 			}
 			defer s.Close()
 
+			// send stub name to tunnel server
+			err = writeConnectRequest(s, stub)
+			if err != nil {
+				log.Println("proxy, write handshake request failed!", err)
+				return
+			}
+
+			// check response
+			code, err := readConnectResponse(s)
+			if err != nil || code != 0 {
+				log.Println("proxy, read handshake response failed!", err, "code", code)
+				return
+			}
+
 			log.Println("proxy session opened! start io copy ...")
 			go io.Copy(s, c)
 			io.Copy(c, s)
@@ -180,7 +160,7 @@ func proxyListenAndServe(listenPort string, stream io.ReadWriteCloser) error {
 	}
 }
 
-func stubDailAndServe(stream io.ReadWriteCloser, upstream string) error {
+func stubServe(stream io.ReadWriteCloser) error {
 	log.Println("stub, start yamux server ...")
 	session, err := yamux.Server(stream, nil)
 	if err != nil {
@@ -202,18 +182,47 @@ func stubDailAndServe(stream io.ReadWriteCloser, upstream string) error {
 			log.Println("stub, accepted!")
 			defer s.Close()
 
-			log.Println("stub, dial upstream", upstream, "...")
-			c, err := net.Dial("tcp", upstream)
+			stub, err := readConnectRequest(s)
+			if err != nil {
+				log.Println("stub, read handshake request failed!", err)
+				return
+			}
+
+			opt, err := findStubOption(stub)
+			if err != nil {
+				log.Println("stub, find stub", stub, "option failed!", err)
+				return
+			}
+
+			log.Println("stub, dial upstream", opt.Upstream, "...")
+			c, err := net.Dial("tcp", opt.Upstream)
 			if err != nil {
 				log.Println("stub, sock dial failed!", err)
+				writeConnectResponse(s, -1)
 				return
 			}
 			// c := newLogReadWriteCloser("stub_client", c1)
 			defer c.Close()
+
+			err = writeConnectResponse(s, 0)
+			if err != nil {
+				log.Println("stub, write handshake response failed!", err)
+				return
+			}
 
 			log.Println("stub upstream dailed! start io copy ...")
 			go io.Copy(c, s)
 			io.Copy(s, c)
 		}()
 	}
+}
+
+func findStubOption(stub string) (*StubOption, error) {
+	for _, opt := range configure.Stubs {
+		if opt.Name == stub {
+			return opt, nil
+		}
+	}
+
+	return nil, fmt.Errorf("stub option not found")
 }

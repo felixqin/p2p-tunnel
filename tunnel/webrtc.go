@@ -4,9 +4,9 @@ import (
 	"github.com/pions/webrtc"
 )
 
-type IceOptions []string
+type IceServers []string
 
-func newWebRTC(conf *IceOptions) (*webrtc.RTCPeerConnection, error) {
+func newWebRTC(conf *IceServers) (*webrtc.RTCPeerConnection, error) {
 	return webrtc.New(webrtc.RTCConfiguration{
 		IceServers: []webrtc.RTCIceServer{
 			{
