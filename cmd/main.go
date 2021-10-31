@@ -44,10 +44,11 @@ func main() {
 			})
 		}
 
-		err := tunnelServer.Open(offer.Sdp, answerSender, func() {
+		err := tunnelServer.Open(offer.Sdp, answerSender, func(stream *tunnel.Stream) {
 			go func() {
+				defer tunnelServer.Close()
 				log.Println("stub serve ...")
-				err := stubServe(tunnelServer)
+				err := stubServe(stream)
 				if err != nil {
 					log.Println("stub serve failed! err", err)
 				}
@@ -74,10 +75,11 @@ func main() {
 
 		// create and start tunnel client
 		tunnelClient := tunnel.NewClient(configure.Ices)
+		defer tunnelClient.Close()
 		tunnelClients[serverContactName] = tunnelClient
 
 		offerSender := makeOfferSender(serverContactName)
-		err := tunnelClient.Open(offerSender, func() {
+		err := tunnelClient.Open(offerSender, func(stream *tunnel.Stream) {
 			for _, proxyOpts := range configure.Proxys {
 				if !proxyOpts.Enable || proxyOpts.Contact != serverContactName {
 					// 跳过不通过此contact连接的代理服务
@@ -88,7 +90,7 @@ func main() {
 				stub := proxyOpts.Stub
 				go func() {
 					log.Println("listen proxy on", port, "for stub", stub, "...")
-					errc <- proxyListenAndServe(port, tunnelClient, stub)
+					errc <- proxyListenAndServe(port, stream, stub)
 				}()
 			}
 		})

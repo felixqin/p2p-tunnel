@@ -35,7 +35,7 @@ func NewClient(iceopts *IceServers) *Client {
 	return p
 }
 
-func (p *Client) Open(sender OfferSender, onStreamOpen func()) error {
+func (p *Client) Open(sender OfferSender, onStreamOpen func(*Stream)) error {
 	dc, err := p.pc.CreateDataChannel("data", nil)
 	if err != nil {
 		log.Println("proxy, create dc failed:", err)
@@ -43,7 +43,7 @@ func (p *Client) Open(sender OfferSender, onStreamOpen func()) error {
 	}
 
 	log.Print("proxy, DataChannel:", dc)
-	p.stream.Open(dc, onStreamOpen)
+	p.stream.Open(dc, func() { onStreamOpen(p.stream) })
 
 	offer, err := p.pc.CreateOffer(nil)
 	if err != nil {
@@ -91,14 +91,7 @@ func (p *Client) Open(sender OfferSender, onStreamOpen func()) error {
 
 func (p *Client) Close() error {
 	log.Println("proxy close")
+	p.stream.Close()
 	p.pc.Close()
 	return nil
-}
-
-func (p *Client) Read(b []byte) (int, error) {
-	return p.stream.Read(b)
-}
-
-func (p *Client) Write(b []byte) (int, error) {
-	return p.stream.Write(b)
 }
