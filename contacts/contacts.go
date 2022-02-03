@@ -29,5 +29,6 @@ func findContact(name string) (*Contact, error) {
 		}
 	}
 
+	log.Printf("contact(%s) not found!", name)
 	return nil, fmt.Errorf("contact not found")
 }
