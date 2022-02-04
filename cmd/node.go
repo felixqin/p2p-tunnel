@@ -7,19 +7,15 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/felixqin/p2p-tunnel/contacts"
 	"github.com/spf13/cobra"
 )
 
 // nodeCmd represents the node command
 var nodeCmd = &cobra.Command{
 	Use:   "node",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "message node command",
+	Long:  "",
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
@@ -28,15 +24,14 @@ to quickly create a Cobra application.`,
 // nodeListCmd represents the node list command
 var nodeListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "show node list of message client",
+	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("node list called")
+		// fmt.Println("node list called")
+		contacts := contacts.Contacts()
+		for _, contact := range contacts {
+			fmt.Printf("%-12v%-12v%-32v\n", contact.Name, contact.Owner, contact.ClientId)
+		}
 	},
 }
 

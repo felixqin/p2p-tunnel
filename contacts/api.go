@@ -37,6 +37,10 @@ func Close() {
 	stopMqtt()
 }
 
+func Contacts() []*Contact {
+	return contacts
+}
+
 func HandleOfferFunc(handler func(fromClient string, offer *Offer)) {
 	offerHandler = handler
 }
