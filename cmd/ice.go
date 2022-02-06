@@ -7,19 +7,15 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/felixqin/p2p-tunnel/session"
 	"github.com/spf13/cobra"
 )
 
 // iceCmd represents the ice command
 var iceCmd = &cobra.Command{
 	Use:   "ice",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "ice servers manager command",
+	Long:  "",
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
@@ -28,30 +24,27 @@ to quickly create a Cobra application.`,
 // iceAddCmd represents the ice add command
 var iceAddCmd = &cobra.Command{
 	Use:   "add",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "add ice server to list",
+	Long:  "",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("ice add called!", args)
+		// fmt.Println("ice add called!", args)
+		server := args[0]
+		session.AddIceServer(server)
 	},
 }
 
 // iceListCmd represents the ice list command
 var iceListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "show all ice servers",
+	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("ice list called")
+		// fmt.Println("ice list called")
+		servers := session.IceServers()
+		for _, server := range *servers {
+			fmt.Printf("%v\n", server)
+		}
 	},
 }
 
