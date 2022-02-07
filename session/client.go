@@ -57,3 +57,22 @@ func Connect(nodeClientId string) error {
 		log.Println("client tunnel create success!!!")
 	})
 }
+
+func (c *Client) Close() error {
+	if c.session != nil {
+		c.session.Close()
+		c.session = nil
+	}
+
+	if c.stream != nil {
+		c.stream.Close()
+		c.stream = nil
+	}
+
+	if c.tunnel != nil {
+		c.tunnel.Close()
+		c.tunnel = nil
+	}
+
+	return nil
+}

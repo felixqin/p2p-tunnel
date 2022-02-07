@@ -39,10 +39,30 @@ func init() {
 
 			server.session = session
 			log.Println("server tunnel create success!!!")
+			go stubServe(session)
 		})
 
 		if err != nil {
 			log.Println("open tunnel server failed!", err)
 		}
 	})
+}
+
+func (c *Server) Close() error {
+	if c.session != nil {
+		c.session.Close()
+		c.session = nil
+	}
+
+	if c.stream != nil {
+		c.stream.Close()
+		c.stream = nil
+	}
+
+	if c.tunnel != nil {
+		c.tunnel.Close()
+		c.tunnel = nil
+	}
+
+	return nil
 }
