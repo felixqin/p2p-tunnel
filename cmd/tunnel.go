@@ -12,6 +12,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	flagTunnelName string
+)
+
 // tunnelCmd represents the tunnel command
 var tunnelCmd = &cobra.Command{
 	Use:   "tunnel",
@@ -37,7 +41,8 @@ var tunnelConnectCmd = &cobra.Command{
 			return
 		}
 
-		err = session.Connect(contact.ClientId)
+		server := session.NewClient(flagTunnelName)
+		err = server.Connect(contact.ClientId)
 		if err != nil {
 			fmt.Printf("connect %v failed!\n", nodeName)
 			return
@@ -81,4 +86,5 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// tunnelCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	tunnelConnectCmd.Flags().StringVarP(&flagTunnelName, "name", "n", "", "tunnel name")
 }

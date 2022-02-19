@@ -3,21 +3,25 @@ package session
 import (
 	"log"
 
+	mapset "github.com/deckarep/golang-set"
+	"github.com/hashicorp/yamux"
+
 	"github.com/felixqin/p2p-tunnel/contacts"
 	"github.com/felixqin/p2p-tunnel/tunnel"
-	"github.com/hashicorp/yamux"
 )
 
 type Client struct {
+	name    string
 	tunnel  *tunnel.Client
 	stream  *tunnel.Stream
 	session *yamux.Session
 }
 
 var answerHandlers = map[string]func(sdp string){}
-var clientSessions = []*Client{}
+var clientSessions mapset.Set
 
 func init() {
+	clientSessions = mapset.NewSet()
 	contacts.HandleAnswerFunc(handleAnswer)
 }
 
@@ -38,14 +42,18 @@ func makeOfferSender(nodeClientId string) tunnel.OfferSender {
 	}
 }
 
-// Connect create and start tunnel client
-func Connect(nodeClientId string) error {
-	client := &Client{}
-	clientSessions = append(clientSessions, client)
+func NewClient(name string) *Client {
+	c := &Client{name: name}
+	clientSessions.Add(c)
+	return c
+}
 
+// Connect create and start tunnel client
+func (c *Client) Connect(nodeClientId string) error {
 	offerSender := makeOfferSender(nodeClientId)
-	client.tunnel = tunnel.NewClient(&iceServers)
-	return client.tunnel.Open(offerSender, func(stream *tunnel.Stream) {
+	c.tunnel = tunnel.NewClient(&iceServers)
+	return c.tunnel.Open(offerSender, func(stream *tunnel.Stream) {
+		c.stream = stream
 		log.Println("proxy, to create yamux client ...")
 		session, err := yamux.Client(stream, nil)
 		if err != nil {
@@ -53,7 +61,7 @@ func Connect(nodeClientId string) error {
 			return
 		}
 
-		client.session = session
+		c.session = session
 		log.Println("client tunnel create success!!!")
 	})
 }
@@ -74,5 +82,6 @@ func (c *Client) Close() error {
 		c.tunnel = nil
 	}
 
+	clientSessions.Remove(c)
 	return nil
 }
