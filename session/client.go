@@ -48,6 +48,21 @@ func NewClient(name string) *Client {
 	return c
 }
 
+func FindClient(name string) *Client {
+	var client *Client
+	clientSessions.Each(func(elem interface{}) bool {
+		// fmt.Println("elem:", elem.(*Client))
+		if elem.(*Client).name == name {
+			client = elem.(*Client)
+			return true
+		}
+
+		return false
+	})
+
+	return client
+}
+
 // Connect create and start tunnel client
 func (c *Client) Connect(nodeClientId string) error {
 	offerSender := makeOfferSender(nodeClientId)

@@ -7,19 +7,19 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/felixqin/p2p-tunnel/session"
 	"github.com/spf13/cobra"
+)
+
+var (
+	flagListenPort string
 )
 
 // proxyCmd represents the proxy command
 var proxyCmd = &cobra.Command{
 	Use:   "proxy",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "proxy manager command",
+	Long:  "",
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
@@ -28,28 +28,29 @@ to quickly create a Cobra application.`,
 // proxyCreateCmd represents the proxy create command
 var proxyCreateCmd = &cobra.Command{
 	Use:   "create",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "create proxy to tunnel stub",
+	Long:  "",
+	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("proxy called")
+		tunnelName := args[0]
+		stub := args[1]
+		fmt.Printf("create proxy over tunnel(%v)\n", tunnelName)
+		client := session.FindClient(tunnelName)
+		if client == nil {
+			fmt.Printf("tunnel %v not found!\n", tunnelName)
+			return
+		}
+
+		proxy := session.NewProxy(client, stub)
+		go proxy.ListenAndServe(flagListenPort)
 	},
 }
 
 // proxyCloseCmd represents the proxy close command
 var proxyCloseCmd = &cobra.Command{
 	Use:   "close",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "close proxy",
+	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("proxy called")
 	},
@@ -58,13 +59,8 @@ to quickly create a Cobra application.`,
 // proxyListCmd represents the proxy list command
 var proxyListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "show all proxies",
+	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("proxy called")
 	},
@@ -85,4 +81,5 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// proxyCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	proxyCreateCmd.Flags().StringVarP(&flagListenPort, "listen", "l", "", "listen port")
 }
