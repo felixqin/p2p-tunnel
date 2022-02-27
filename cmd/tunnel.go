@@ -13,7 +13,9 @@ import (
 )
 
 var (
-	flagTunnelName string
+	flagTunnelName   string
+	flagTunnelServer bool
+	flagTunnelClient bool
 )
 
 // tunnelCmd represents the tunnel command
@@ -41,10 +43,11 @@ var tunnelConnectCmd = &cobra.Command{
 			return
 		}
 
-		server := session.NewClient(flagTunnelName)
-		err = server.Connect(contact.ClientId)
+		c := session.NewClient(flagTunnelName)
+		err = c.Connect(contact.ClientId)
 		if err != nil {
 			fmt.Printf("connect %v failed!\n", nodeName)
+			c.Close()
 			return
 		}
 	},
@@ -67,7 +70,15 @@ var tunnelListCmd = &cobra.Command{
 	Short: "show all tunnels",
 	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("tunnel list called")
+		// fmt.Println("tunnel list called")
+		if flagTunnelServer {
+			session.DumpServers()
+		} else if flagTunnelClient {
+			session.DumpClients()
+		} else {
+			session.DumpServers()
+			session.DumpClients()
+		}
 	},
 }
 
@@ -87,4 +98,6 @@ func init() {
 	// is called directly, e.g.:
 	// tunnelCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	tunnelConnectCmd.Flags().StringVarP(&flagTunnelName, "name", "n", "", "tunnel name")
+	tunnelListCmd.Flags().BoolVarP(&flagTunnelServer, "server", "s", false, "tunnel server")
+	tunnelListCmd.Flags().BoolVarP(&flagTunnelClient, "client", "c", false, "tunnel client")
 }

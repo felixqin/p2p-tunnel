@@ -1,6 +1,7 @@
 package session
 
 import (
+	"fmt"
 	"log"
 
 	mapset "github.com/deckarep/golang-set"
@@ -11,10 +12,13 @@ import (
 )
 
 type Client struct {
-	name    string
-	tunnel  *tunnel.Client
-	stream  *tunnel.Stream
-	session *yamux.Session
+	Name          string
+	Status        string
+	toClientId    string ///< 对方的 Node Client ID
+	answerHandler func(sdp string)
+	tunnel        *tunnel.Client
+	stream        *tunnel.Stream
+	session       *yamux.Session
 }
 
 var answerHandlers = map[string]func(sdp string){}
@@ -25,25 +29,8 @@ func init() {
 	contacts.HandleAnswerFunc(handleAnswer)
 }
 
-func handleAnswer(fromClient string, answer *contacts.Answer) {
-	handler := answerHandlers[fromClient]
-	if handler != nil {
-		handler(answer.Sdp)
-	}
-}
-
-func makeOfferSender(nodeClientId string) tunnel.OfferSender {
-	return func(sdp string, answerHandler func(sdp string)) error {
-		log.Println("send offer to", nodeClientId)
-		answerHandlers[nodeClientId] = answerHandler
-		return contacts.SendOffer(nodeClientId, &contacts.Offer{
-			Sdp: sdp,
-		})
-	}
-}
-
 func NewClient(name string) *Client {
-	c := &Client{name: name}
+	c := &Client{Name: name, Status: "INIT"}
 	clientSessions.Add(c)
 	return c
 }
@@ -52,7 +39,7 @@ func FindClient(name string) *Client {
 	var client *Client
 	clientSessions.Each(func(elem interface{}) bool {
 		// fmt.Println("elem:", elem.(*Client))
-		if elem.(*Client).name == name {
+		if elem.(*Client).Name == name {
 			client = elem.(*Client)
 			return true
 		}
@@ -63,21 +50,26 @@ func FindClient(name string) *Client {
 	return client
 }
 
-// Connect create and start tunnel client
-func (c *Client) Connect(nodeClientId string) error {
-	offerSender := makeOfferSender(nodeClientId)
-	c.tunnel = tunnel.NewClient(&iceServers)
-	return c.tunnel.Open(offerSender, func(stream *tunnel.Stream) {
-		c.stream = stream
-		log.Println("proxy, to create yamux client ...")
-		session, err := yamux.Client(stream, nil)
-		if err != nil {
-			log.Println("proxy, create yamux client failed!", err)
-			return
+func findClientByToNodeClientId(toNodeClientId string) *Client {
+	var client *Client
+	clientSessions.Each(func(elem interface{}) bool {
+		if elem.(*Client).toClientId == toNodeClientId {
+			client = elem.(*Client)
+			return true
 		}
 
-		c.session = session
-		log.Println("client tunnel create success!!!")
+		return false
+	})
+
+	return client
+}
+
+func DumpClients() {
+	clientSessions.Each(func(elem interface{}) bool {
+		// fmt.Println("elem:", elem.(*Client))
+		client := elem.(*Client)
+		fmt.Printf("%-12v%-12v\n", client.Name, client.Status)
+		return false
 	})
 }
 
@@ -99,4 +91,47 @@ func (c *Client) Close() error {
 
 	clientSessions.Remove(c)
 	return nil
+}
+
+// Connect create and start tunnel client
+func (c *Client) Connect(toNodeClientId string) error {
+	c.toClientId = toNodeClientId
+	c.tunnel = tunnel.NewClient(&iceServers)
+	return c.tunnel.Open(c.sendOffer, c.handleStreamOpen)
+}
+
+func (c *Client) sendOffer(sdp string, answerHandler func(sdp string)) error {
+	log.Println("send offer to", c.toClientId)
+	c.answerHandler = answerHandler
+	c.Status = "OFFERING"
+	return contacts.SendOffer(c.toClientId, &contacts.Offer{
+		Sdp: sdp,
+	})
+}
+
+func handleAnswer(fromClient string, answer *contacts.Answer) {
+	client := findClientByToNodeClientId(fromClient)
+	if client == nil {
+		return
+	}
+
+	client.Status = "ANSWERED"
+	if client.answerHandler != nil {
+		client.answerHandler(answer.Sdp)
+	}
+}
+
+func (c *Client) handleStreamOpen(stream *tunnel.Stream) {
+	c.stream = stream
+	c.Status = "STREAMED"
+	log.Println("proxy, to create yamux client ...")
+	session, err := yamux.Client(stream, nil)
+	if err != nil {
+		log.Println("proxy, create yamux client failed!", err)
+		return
+	}
+
+	c.session = session
+	c.Status = "CONNECTED"
+	log.Println("client tunnel create success!!!")
 }
